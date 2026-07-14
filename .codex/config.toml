@@ -1,0 +1,15 @@
+[mcp_servers.filesystem]
+command = "bunx"
+args = ["@modelcontextprotocol/server-filesystem", "."]
+
+[mcp_servers.sequential-thinking]
+command = "bunx"
+args = ["@modelcontextprotocol/server-sequential-thinking"]
+
+[mcp_servers.git]
+command = "uvx"
+args = ["mcp-server-git"]
+
+[mcp_servers.dart]
+command = "dart"
+args = ["mcp-server"]
