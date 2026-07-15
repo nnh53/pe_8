@@ -1,17 +1,32 @@
-# pe_8
+# Campus Equipment Loan
 
-A new Flutter project.
+An Android Flutter application for browsing campus devices and submitting
+equipment-loan requests through RESTful API.
 
-## Getting Started
+## Local configuration
 
-This project is a starting point for a Flutter application.
+Copy `.env.example` to `.env` and replace the API key. The real `.env` is
+ignored by Git.
 
-A few resources to get you started if this is your first Flutter project:
+Run the configured app on the Android emulator:
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```powershell
+flutter run -d emulator-5554 --dart-define-from-file=.env
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+`RESTFUL_API_OBJECTS_URL` defaults in code to the exam endpoint
+`https://api.restful-api.dev/objects`. It can point to an authenticated test
+collection during development without changing application code.
+
+## Development checks
+
+Generate transport serializers, format source, and run static analysis:
+
+```powershell
+dart run build_runner build
+dart format lib
+flutter analyze
+```
+
+Automated tests are intentionally introduced in PART 4 of the implementation
+plan. PARTs 1-3 use the documented Android manual-verification matrices.
