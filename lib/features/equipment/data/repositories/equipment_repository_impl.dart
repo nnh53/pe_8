@@ -9,11 +9,7 @@ import '../mapping/device_mapper.dart';
 /// Loads and normalizes devices from the configured remote data source.
 final class EquipmentRepositoryImpl implements EquipmentRepository {
   /// Creates the repository with its data source and mapper.
-  const EquipmentRepositoryImpl({
-    required EquipmentRemoteDataSource remote,
-    required DeviceMapper mapper,
-  }) : _remote = remote,
-       _mapper = mapper;
+  const EquipmentRepositoryImpl({required this._remote, required this._mapper});
 
   final EquipmentRemoteDataSource _remote;
   final DeviceMapper _mapper;

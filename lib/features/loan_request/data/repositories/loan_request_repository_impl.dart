@@ -10,10 +10,9 @@ import '../mapping/loan_request_mapper.dart';
 final class LoanRequestRepositoryImpl implements LoanRequestRepository {
   /// Creates the repository with its data source and mapper.
   const LoanRequestRepositoryImpl({
-    required LoanRequestRemoteDataSource remote,
-    required LoanRequestMapper mapper,
-  }) : _remote = remote,
-       _mapper = mapper;
+    required this._remote,
+    required this._mapper,
+  });
 
   final LoanRequestRemoteDataSource _remote;
   final LoanRequestMapper _mapper;

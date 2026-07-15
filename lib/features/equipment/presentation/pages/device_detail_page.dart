@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/app_providers.dart';
-import '../../../../core/error/app_failure.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/device.dart';
@@ -30,7 +29,7 @@ final class DeviceDetailPage extends ConsumerWidget {
         data: (value) => switch (value) {
           Success(value: final device) => _DeviceDetails(device: device),
           Failure(error: final failure) => _DetailError(
-            message: (failure as AppFailure).message,
+            message: (failure).message,
             onRetry: () => ref.invalidate(deviceDetailsProvider(deviceId)),
           ),
         },

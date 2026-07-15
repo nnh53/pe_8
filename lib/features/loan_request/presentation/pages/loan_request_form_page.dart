@@ -28,7 +28,7 @@ final class LoanRequestFormPage extends ConsumerWidget {
         data: (value) => switch (value) {
           Success(value: final device) => _LoadedLoanForm(device: device),
           Failure(error: final failure) => _LoadError(
-            message: (failure as AppFailure).message,
+            message: (failure).message,
           ),
         },
       ),

@@ -6,10 +6,9 @@ import '../models/loan_request_response_dto.dart';
 final class LoanRequestRemoteDataSource {
   /// Creates the data source around an injected API client.
   const LoanRequestRemoteDataSource({
-    required ApiClient client,
-    required Uri objectsUri,
-  }) : _client = client,
-       _objectsUri = objectsUri;
+    required this._client,
+    required this._objectsUri,
+  });
 
   final ApiClient _client;
   final Uri _objectsUri;

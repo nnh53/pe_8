@@ -84,15 +84,11 @@ final class LoanFormState {
 final class LoanFormController extends StateNotifier<LoanFormState> {
   /// Creates a controller with replaceable domain dependencies.
   LoanFormController({
-    required Device device,
-    required DepositPolicy depositPolicy,
-    required Clock clock,
-    required SubmitLoanRequest submitLoanRequest,
-  }) : _device = device,
-       _depositPolicy = depositPolicy,
-       _clock = clock,
-       _submitLoanRequest = submitLoanRequest,
-       super(const LoanFormState());
+    required this._device,
+    required this._depositPolicy,
+    required this._clock,
+    required this._submitLoanRequest,
+  }) : super(const LoanFormState());
 
   final Device _device;
   final DepositPolicy _depositPolicy;

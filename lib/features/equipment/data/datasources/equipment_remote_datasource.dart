@@ -6,10 +6,9 @@ import '../models/device_dto.dart';
 final class EquipmentRemoteDataSource {
   /// Creates the data source around an injected API client.
   const EquipmentRemoteDataSource({
-    required ApiClient client,
-    required Uri objectsUri,
-  }) : _client = client,
-       _objectsUri = objectsUri;
+    required this._client,
+    required this._objectsUri,
+  });
 
   final ApiClient _client;
   final Uri _objectsUri;

@@ -9,10 +9,10 @@ import 'network_exceptions.dart';
 final class ApiClient {
   /// Creates a client around an injected HTTP transport.
   ApiClient({
-    required http.Client client,
+    required this._client,
     this.apiKey = '',
     this.timeout = const Duration(seconds: 12),
-  }) : _client = client;
+  });
 
   final http.Client _client;
 
