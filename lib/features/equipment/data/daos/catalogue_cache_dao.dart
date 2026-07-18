@@ -7,6 +7,7 @@ import '../../../../core/storage/tables/cached_devices.dart';
 import '../../../../core/storage/tables/catalogue_metadata.dart';
 import '../../domain/entities/cached_catalogue.dart';
 import '../../domain/entities/device.dart';
+import '../../domain/repositories/catalogue_cache_store.dart';
 import '../mapping/device_json.dart';
 
 part 'catalogue_cache_dao.g.dart';
@@ -14,11 +15,13 @@ part 'catalogue_cache_dao.g.dart';
 /// Reads and atomically replaces the offline catalogue cache.
 @DriftAccessor(tables: [CachedDevices, CatalogueMetadata])
 class CatalogueCacheDao extends DatabaseAccessor<AppDatabase>
-    with _$CatalogueCacheDaoMixin {
+    with _$CatalogueCacheDaoMixin
+    implements CatalogueCacheStore {
   /// Creates the accessor for [db].
   CatalogueCacheDao(super.db);
 
   /// Loads the cached catalogue, or null when nothing has been cached.
+  @override
   Future<CachedCatalogue?> loadCachedCatalogue() async {
     final query = select(cachedDevices)
       ..orderBy([(row) => OrderingTerm(expression: row.sourceIndex)]);
@@ -36,6 +39,7 @@ class CatalogueCacheDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// Replaces all cached rows and metadata in a single transaction.
+  @override
   Future<void> replaceCatalogue(
     List<Device> devices, {
     required DateTime refreshedAt,

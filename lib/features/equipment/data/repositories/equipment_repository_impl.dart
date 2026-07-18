@@ -4,8 +4,8 @@ import '../../../../core/time/clock.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/cached_catalogue.dart';
 import '../../domain/entities/device.dart';
+import '../../domain/repositories/catalogue_cache_store.dart';
 import '../../domain/repositories/equipment_repository.dart';
-import '../daos/catalogue_cache_dao.dart';
 import '../datasources/equipment_remote_datasource.dart';
 import '../mapping/device_mapper.dart';
 
@@ -21,7 +21,7 @@ final class EquipmentRepositoryImpl implements EquipmentRepository {
 
   final EquipmentRemoteDataSource _remote;
   final DeviceMapper _mapper;
-  final CatalogueCacheDao _cache;
+  final CatalogueCacheStore _cache;
   final Clock _clock;
 
   @override
