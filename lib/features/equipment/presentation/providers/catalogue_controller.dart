@@ -37,9 +37,14 @@ final class CatalogueError extends CatalogueState {
 /// Loads and refreshes catalogue state through a use case.
 final class CatalogueController extends StateNotifier<CatalogueState> {
   /// Creates the controller before its initial load.
-  CatalogueController(this._getDevices) : super(const CatalogueLoading());
+  CatalogueController(this._getDevices, {this.onRemoteRefreshSuccess})
+    : super(const CatalogueLoading());
 
   final GetDevices _getDevices;
+
+  /// Invoked with the authoritative devices after a successful remote load.
+  final void Function(List<Device> devices)? onRemoteRefreshSuccess;
+
   bool _requestInFlight = false;
 
   /// Performs the initial load or retries an empty/error state.
@@ -61,10 +66,13 @@ final class CatalogueController extends StateNotifier<CatalogueState> {
     }
 
     final result = await _getDevices();
-    state = switch (result) {
-      Success(value: final devices) => CatalogueContent(devices: devices),
-      Failure(error: final failure) => CatalogueError(failure),
-    };
+    switch (result) {
+      case Success(value: final devices):
+        state = CatalogueContent(devices: devices);
+        onRemoteRefreshSuccess?.call(devices);
+      case Failure(error: final failure):
+        state = CatalogueError(failure);
+    }
     _requestInFlight = false;
   }
 }

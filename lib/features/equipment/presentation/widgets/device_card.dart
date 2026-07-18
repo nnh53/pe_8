@@ -10,6 +10,8 @@ final class DeviceCard extends StatelessWidget {
     required this.device,
     required this.deposit,
     required this.onTap,
+    required this.isSelectedForCompare,
+    required this.onToggleCompare,
     super.key,
   });
 
@@ -21,6 +23,12 @@ final class DeviceCard extends StatelessWidget {
 
   /// Opens device details.
   final VoidCallback onTap;
+
+  /// Whether the device is currently in the compare selection.
+  final bool isSelectedForCompare;
+
+  /// Toggles the device's compare selection.
+  final VoidCallback onToggleCompare;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -66,7 +74,20 @@ final class DeviceCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right),
+            IconButton(
+              tooltip: isSelectedForCompare
+                  ? 'Remove from compare'
+                  : 'Add to compare',
+              onPressed: onToggleCompare,
+              icon: Icon(
+                isSelectedForCompare
+                    ? Icons.check_circle
+                    : Icons.add_circle_outline,
+                color: isSelectedForCompare
+                    ? Theme.of(context).colorScheme.secondary
+                    : null,
+              ),
+            ),
           ],
         ),
       ),

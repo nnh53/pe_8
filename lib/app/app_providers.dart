@@ -3,18 +3,24 @@ import 'package:http/http.dart' as http;
 
 import '../core/network/api_client.dart';
 import '../core/error/app_failure.dart';
+import '../core/storage/app_database.dart';
 import '../core/time/clock.dart';
 import '../core/utils/result.dart';
+import '../features/compare/data/repositories/compare_repository_impl.dart';
+import '../features/compare/domain/repositories/compare_repository.dart';
+import '../features/compare/presentation/providers/compare_controller.dart';
 import '../features/equipment/data/datasources/equipment_remote_datasource.dart';
 import '../features/equipment/data/mapping/device_mapper.dart';
 import '../features/equipment/data/repositories/equipment_repository_impl.dart';
 import '../features/equipment/domain/entities/device.dart';
+import '../features/equipment/domain/entities/device_sort.dart';
 import '../features/equipment/domain/policies/deposit_policy.dart';
 import '../features/equipment/domain/policies/device_category_classifier.dart';
 import '../features/equipment/domain/repositories/equipment_repository.dart';
 import '../features/equipment/domain/usecases/get_device.dart';
 import '../features/equipment/domain/usecases/get_devices.dart';
 import '../features/equipment/presentation/providers/catalogue_controller.dart';
+import '../features/equipment/presentation/providers/catalogue_query_controller.dart';
 import '../features/loan_request/data/datasources/loan_request_remote_datasource.dart';
 import '../features/loan_request/data/mapping/loan_request_mapper.dart';
 import '../features/loan_request/data/repositories/loan_request_repository_impl.dart';
@@ -49,6 +55,13 @@ final apiObjectsUriProvider = Provider<Uri>(
 
 /// Provides the replaceable system clock.
 final clockProvider = Provider<Clock>((ref) => const SystemClock());
+
+/// Owns the SQLite database lifecycle for the whole application.
+final appDatabaseProvider = Provider<AppDatabase>((ref) {
+  final database = AppDatabase();
+  ref.onDispose(database.close);
+  return database;
+});
 
 /// Provides the replaceable device category policy.
 final categoryClassifierProvider = Provider<DeviceCategoryClassifier>(
@@ -90,7 +103,14 @@ final _getDeviceProvider = Provider<GetDevice>(
 /// Owns the catalogue's initial load and refresh lifecycle.
 final catalogueControllerProvider =
     StateNotifierProvider<CatalogueController, CatalogueState>((ref) {
-      final controller = CatalogueController(ref.watch(_getDevicesProvider));
+      final controller = CatalogueController(
+        ref.watch(_getDevicesProvider),
+        onRemoteRefreshSuccess: (devices) {
+          ref
+              .read(compareControllerProvider.notifier)
+              .reconcileWith(devices.map((device) => device.id).toSet());
+        },
+      );
       Future<void>.microtask(controller.load);
       return controller;
     });
@@ -135,3 +155,53 @@ final loanFormControllerProvider = StateNotifierProvider.autoDispose
         submitLoanRequest: ref.watch(_submitLoanRequestProvider),
       );
     });
+
+/// Owns the catalogue search field text and its debounce timer.
+final catalogueQueryControllerProvider =
+    StateNotifierProvider<CatalogueQueryController, CatalogueQuery>(
+      (ref) => CatalogueQueryController(),
+    );
+
+/// Owns the currently selected catalogue sort mode.
+final sortModeProvider = StateProvider<SortMode>((ref) => SortMode.sourceOrder);
+
+/// Derives the visible catalogue by applying the debounced query and sort.
+///
+/// Filtering and sorting operate on copies; the repository/source order is
+/// never mutated, so clearing the query restores the exact remote order.
+final visibleDevicesProvider = Provider<List<Device>>((ref) {
+  final state = ref.watch(catalogueControllerProvider);
+  if (state is! CatalogueContent) {
+    return const <Device>[];
+  }
+  final query = ref.watch(catalogueQueryControllerProvider).debounced;
+  final mode = ref.watch(sortModeProvider);
+  final depositPolicy = ref.watch(depositPolicyProvider);
+
+  final normalizedQuery = query.trim().toLowerCase();
+  final filtered = normalizedQuery.isEmpty
+      ? state.devices
+      : <Device>[
+          for (final device in state.devices)
+            if (device.name.toLowerCase().contains(normalizedQuery)) device,
+        ];
+  return sortDevices(filtered, mode, depositPolicy);
+});
+
+final _compareDaoProvider = Provider(
+  (ref) => ref.watch(appDatabaseProvider).compareDao,
+);
+
+/// Provides persisted comparison storage.
+final compareRepositoryProvider = Provider<CompareRepository>(
+  (ref) => CompareRepositoryImpl(
+    dao: ref.watch(_compareDaoProvider),
+    clock: ref.watch(clockProvider),
+  ),
+);
+
+/// Owns the ordered comparison selection and its two-device limit.
+final compareControllerProvider =
+    StateNotifierProvider<CompareController, List<String>>(
+      (ref) => CompareController(ref.watch(compareRepositoryProvider)),
+    );

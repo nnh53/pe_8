@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../app/app_providers.dart';
+import '../../../compare/domain/entities/compare_add_result.dart';
+import '../../../compare/presentation/providers/compare_controller.dart';
 import '../../domain/entities/device.dart';
-import '../../domain/policies/deposit_policy.dart';
+import '../../domain/entities/device_sort.dart';
 import '../providers/catalogue_controller.dart';
 import '../widgets/device_card.dart';
 
-/// Displays the remote device catalogue and its primary states.
+/// Displays the remote device catalogue with search, sort, and compare.
 final class DeviceCataloguePage extends ConsumerWidget {
   /// Creates the catalogue page.
   const DeviceCataloguePage({super.key});
@@ -15,7 +18,6 @@ final class DeviceCataloguePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(catalogueControllerProvider);
-    final depositPolicy = ref.watch(depositPolicyProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Column(
@@ -28,6 +30,7 @@ final class DeviceCataloguePage extends ConsumerWidget {
             ),
           ],
         ),
+        actions: const <Widget>[_SortMenu()],
       ),
       body: switch (state) {
         CatalogueLoading() => const _LoadingView(),
@@ -35,77 +38,131 @@ final class DeviceCataloguePage extends ConsumerWidget {
           message: failure.message,
           onRetry: ref.read(catalogueControllerProvider.notifier).load,
         ),
-        CatalogueContent(
-          devices: final devices,
-          isRefreshing: final isRefreshing,
-        ) =>
-          _CatalogueView(
-            devices: devices,
-            depositPolicy: depositPolicy,
-            isRefreshing: isRefreshing,
-            onRefresh: ref.read(catalogueControllerProvider.notifier).refresh,
-          ),
+        CatalogueContent(isRefreshing: final isRefreshing) => _CatalogueView(
+          isRefreshing: isRefreshing,
+          onRefresh: ref.read(catalogueControllerProvider.notifier).refresh,
+        ),
       },
     );
   }
 }
 
-final class _CatalogueView extends StatelessWidget {
-  const _CatalogueView({
-    required this.devices,
-    required this.depositPolicy,
-    required this.isRefreshing,
-    required this.onRefresh,
-  });
+final class _SortMenu extends ConsumerWidget {
+  const _SortMenu();
 
-  final List<Device> devices;
-  final DepositPolicy depositPolicy;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(sortModeProvider);
+    return PopupMenuButton<SortMode>(
+      tooltip: 'Sort',
+      icon: const Icon(Icons.sort),
+      initialValue: mode,
+      onSelected: (value) => ref.read(sortModeProvider.notifier).state = value,
+      itemBuilder: (context) => <PopupMenuEntry<SortMode>>[
+        for (final value in SortMode.values)
+          PopupMenuItem<SortMode>(value: value, child: Text(value.label)),
+      ],
+    );
+  }
+}
+
+final class _CatalogueView extends ConsumerWidget {
+  const _CatalogueView({required this.isRefreshing, required this.onRefresh});
+
   final bool isRefreshing;
   final Future<void> Function() onRefresh;
 
   @override
-  Widget build(BuildContext context) {
-    if (devices.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: onRefresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: const <Widget>[
-            SizedBox(height: 180),
-            Icon(Icons.inventory_2_outlined, size: 56),
-            SizedBox(height: 16),
-            Center(child: Text('No devices are available right now.')),
-          ],
-        ),
-      );
-    }
+  Widget build(BuildContext context, WidgetRef ref) {
+    final devices = ref.watch(visibleDevicesProvider);
+    final depositPolicy = ref.watch(depositPolicyProvider);
+    final selectedIds = ref.watch(compareControllerProvider);
+    final query = ref.watch(catalogueQueryControllerProvider).raw;
 
-    return Stack(
+    return Column(
       children: <Widget>[
-        RefreshIndicator(
-          onRefresh: onRefresh,
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: devices.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final device = devices[index];
-              return DeviceCard(
-                device: device,
-                deposit: depositPolicy.depositFor(device.estimatedValue),
-                onTap: () => context.push('/equipment/${device.id}'),
-              );
-            },
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: TextField(
+            key: const ValueKey('catalogue-search-field'),
+            decoration: InputDecoration(
+              hintText: 'Search devices by name',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: query.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: ref
+                          .read(catalogueQueryControllerProvider.notifier)
+                          .clear,
+                    ),
+            ),
+            onChanged: ref
+                .read(catalogueQueryControllerProvider.notifier)
+                .updateQuery,
           ),
         ),
-        if (isRefreshing)
-          const Align(
-            alignment: Alignment.topCenter,
-            child: LinearProgressIndicator(minHeight: 2),
+        if (isRefreshing) const LinearProgressIndicator(minHeight: 2),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: onRefresh,
+            child: devices.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const <Widget>[
+                      SizedBox(height: 160),
+                      Icon(Icons.inventory_2_outlined, size: 56),
+                      SizedBox(height: 16),
+                      Center(child: Text('No devices match your search.')),
+                    ],
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: devices.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final device = devices[index];
+                      return DeviceCard(
+                        device: device,
+                        deposit: depositPolicy.depositFor(
+                          device.estimatedValue,
+                        ),
+                        isSelectedForCompare: selectedIds.contains(device.id),
+                        onTap: () => context.push('/equipment/${device.id}'),
+                        onToggleCompare: () =>
+                            _toggleCompare(context, ref, device),
+                      );
+                    },
+                  ),
           ),
+        ),
       ],
     );
+  }
+
+  Future<void> _toggleCompare(
+    BuildContext context,
+    WidgetRef ref,
+    Device device,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await ref
+        .read(compareControllerProvider.notifier)
+        .toggle(device.id);
+    final message = switch (result) {
+      CompareAddResult.added => '${device.name} added to compare.',
+      CompareAddResult.alreadySelected => '${device.name} is already selected.',
+      CompareAddResult.limitReached =>
+        'You can compare at most ${CompareController.maxSelection} devices.',
+      null => '${device.name} removed from compare.',
+    };
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+      );
   }
 }
 
