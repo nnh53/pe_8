@@ -6,6 +6,7 @@ import '../features/equipment/presentation/pages/device_catalogue_page.dart';
 import '../features/equipment/presentation/pages/device_detail_page.dart';
 import '../features/loan_request/domain/entities/loan_request.dart';
 import '../features/loan_request/presentation/pages/loan_request_form_page.dart';
+import '../features/loan_request/presentation/pages/pending_requests_page.dart';
 import '../features/loan_request/presentation/pages/request_result_page.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -49,6 +50,11 @@ final GoRouter appRouter = GoRouter(
               LoanRequestFormPage(deviceId: state.pathParameters['id'] ?? ''),
         ),
       ],
+    ),
+    GoRoute(
+      parentNavigatorKey: _rootNavigatorKey,
+      path: '/pending',
+      builder: (context, state) => const PendingRequestsPage(),
     ),
     GoRoute(
       parentNavigatorKey: _rootNavigatorKey,

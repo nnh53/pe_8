@@ -30,6 +30,18 @@ final class DataFailure extends AppFailure {
   ]);
 }
 
+/// A failure whose outcome is unknown because a request may have been received.
+///
+/// Used when a POST times out after being sent: the server might have created
+/// the object, so the request must be reviewed before it is retried.
+final class AmbiguousFailure extends AppFailure {
+  const AmbiguousFailure([
+    super.message =
+        'The request was sent but no confirmation was received. '
+        'Review it before trying again.',
+  ]);
+}
+
 /// An unexpected failure that does not match a known category.
 final class UnexpectedFailure extends AppFailure {
   const UnexpectedFailure([

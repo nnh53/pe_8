@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/app_providers.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../compare/domain/entities/compare_add_result.dart';
 import '../../../compare/presentation/providers/compare_controller.dart';
+import '../../../loan_request/presentation/providers/pending_controller.dart';
 import '../../domain/entities/device.dart';
 import '../../domain/entities/device_sort.dart';
 import '../providers/catalogue_controller.dart';
@@ -30,7 +32,7 @@ final class DeviceCataloguePage extends ConsumerWidget {
             ),
           ],
         ),
-        actions: const <Widget>[_SortMenu()],
+        actions: const <Widget>[_PendingAction(), _SortMenu()],
       ),
       body: switch (state) {
         CatalogueLoading() => const _LoadingView(),
@@ -38,11 +40,36 @@ final class DeviceCataloguePage extends ConsumerWidget {
           message: failure.message,
           onRetry: ref.read(catalogueControllerProvider.notifier).load,
         ),
-        CatalogueContent(isRefreshing: final isRefreshing) => _CatalogueView(
-          isRefreshing: isRefreshing,
-          onRefresh: ref.read(catalogueControllerProvider.notifier).refresh,
-        ),
+        CatalogueContent(
+          isRefreshing: final isRefreshing,
+          isOffline: final isOffline,
+          lastRefreshedAt: final lastRefreshedAt,
+        ) =>
+          _CatalogueView(
+            isRefreshing: isRefreshing,
+            isOffline: isOffline,
+            lastRefreshedAt: lastRefreshedAt,
+            onRefresh: ref.read(catalogueControllerProvider.notifier).refresh,
+          ),
       },
+    );
+  }
+}
+
+final class _PendingAction extends ConsumerWidget {
+  const _PendingAction();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(pendingCountProvider);
+    return IconButton(
+      tooltip: 'Pending requests',
+      onPressed: () => context.push('/pending'),
+      icon: Badge(
+        isLabelVisible: count > 0,
+        label: Text('$count'),
+        child: const Icon(Icons.pending_actions_outlined),
+      ),
     );
   }
 }
@@ -67,9 +94,16 @@ final class _SortMenu extends ConsumerWidget {
 }
 
 final class _CatalogueView extends ConsumerWidget {
-  const _CatalogueView({required this.isRefreshing, required this.onRefresh});
+  const _CatalogueView({
+    required this.isRefreshing,
+    required this.isOffline,
+    required this.lastRefreshedAt,
+    required this.onRefresh,
+  });
 
   final bool isRefreshing;
+  final bool isOffline;
+  final DateTime? lastRefreshedAt;
   final Future<void> Function() onRefresh;
 
   @override
@@ -81,6 +115,7 @@ final class _CatalogueView extends ConsumerWidget {
 
     return Column(
       children: <Widget>[
+        if (isOffline) _OfflineBanner(lastRefreshedAt: lastRefreshedAt),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: TextField(
@@ -163,6 +198,37 @@ final class _CatalogueView extends ConsumerWidget {
       ..showSnackBar(
         SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
       );
+  }
+}
+
+final class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner({required this.lastRefreshedAt});
+
+  final DateTime? lastRefreshedAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final refreshed = lastRefreshedAt;
+    return Material(
+      color: Theme.of(context).colorScheme.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: <Widget>[
+            const Icon(Icons.cloud_off_outlined, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                refreshed == null
+                    ? 'Offline — showing cached devices.'
+                    : 'Offline — cached ${formatDateTime(refreshed)}.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

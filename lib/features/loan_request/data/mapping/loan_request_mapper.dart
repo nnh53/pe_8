@@ -1,30 +1,19 @@
 import '../../../../core/network/network_exceptions.dart';
+import '../../domain/entities/loan_payload.dart';
 import '../../domain/entities/loan_request.dart';
+import '../../domain/entities/remote_creation.dart';
 import '../models/loan_request_response_dto.dart';
 
-/// Maps loan requests to the exact remote payload and response receipt.
+/// Maps loan requests to the exact remote payload and response types.
 final class LoanRequestMapper {
   const LoanRequestMapper();
 
   /// Builds the exact nested object required by the remote endpoint.
-  Map<String, Object?> toPayload(LoanRequest request) => {
-    'name': 'Campus Equipment Loan Request',
-    'data': <String, Object?>{
-      'deviceId': request.device.id,
-      'studentId': request.studentId,
-      'borrowDate': _date(request.period.borrowDate),
-      'returnDate': _date(request.period.returnDate),
-      'purpose': request.purpose,
-      'deposit': request.deposit,
-      'status': 'pending',
-    },
-  };
+  Map<String, Object?> toPayload(LoanRequest request) =>
+      buildLoanPayload(request);
 
-  /// Builds a confirmed domain receipt from a successful POST response.
-  LoanRequestReceipt toReceipt(
-    LoanRequestResponseDto dto,
-    LoanRequest request,
-  ) {
+  /// Validates a POST response into a confirmed [RemoteCreation].
+  RemoteCreation toRemoteCreation(LoanRequestResponseDto dto) {
     final createdAt = DateTime.tryParse(dto.createdAt);
     final status = dto.data['status'];
     if (createdAt == null || status is! String) {
@@ -32,17 +21,22 @@ final class LoanRequestMapper {
         'Created request response omitted required fields.',
       );
     }
-    return LoanRequestReceipt(
+    return RemoteCreation(
       id: dto.id,
       name: dto.name,
       createdAt: createdAt,
-      request: request,
       status: status,
+      data: Map<String, Object?>.from(dto.data),
     );
   }
 
-  String _date(DateTime value) =>
-      '${value.year.toString().padLeft(4, '0')}-'
-      '${value.month.toString().padLeft(2, '0')}-'
-      '${value.day.toString().padLeft(2, '0')}';
+  /// Builds a confirmed domain receipt from a remote creation.
+  LoanRequestReceipt toReceipt(RemoteCreation creation, LoanRequest request) =>
+      LoanRequestReceipt(
+        id: creation.id,
+        name: creation.name,
+        createdAt: creation.createdAt,
+        request: request,
+        status: creation.status,
+      );
 }

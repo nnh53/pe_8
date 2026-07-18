@@ -7,6 +7,8 @@ import '../../../../core/error/app_failure.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/result.dart';
 import '../../../equipment/domain/entities/device.dart';
+import '../providers/loan_form_controller.dart';
+import '../providers/pending_controller.dart';
 
 /// Loads a device and displays its Riverpod-owned loan form.
 final class LoanRequestFormPage extends ConsumerWidget {
@@ -129,12 +131,7 @@ final class _LoadedLoanForm extends ConsumerWidget {
           key: const ValueKey('submit-loan-button'),
           onPressed: state.isSubmitting
               ? null
-              : () async {
-                  final receipt = await controller.submit();
-                  if (receipt != null && context.mounted) {
-                    context.go('/request-result', extra: receipt);
-                  }
-                },
+              : () => _handleSubmit(context, ref, controller),
           child: state.isSubmitting
               ? const SizedBox.square(
                   dimension: 22,
@@ -153,6 +150,66 @@ final class _LoadedLoanForm extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _handleSubmit(
+    BuildContext context,
+    WidgetRef ref,
+    LoanFormController controller,
+  ) async {
+    final result = await controller.submit();
+    if (!context.mounted) {
+      return;
+    }
+    switch (result) {
+      case LoanSubmitSucceeded(receipt: final receipt):
+        context.go('/request-result', extra: receipt);
+      case LoanSubmitOffline():
+        await _offerSaveAsPending(context, ref, controller);
+      case LoanSubmitAmbiguous():
+        ref.invalidate(pendingControllerProvider);
+        if (context.mounted) {
+          context.go('/pending');
+        }
+      case LoanSubmitRejected():
+      case LoanSubmitInvalid():
+        break;
+    }
+  }
+
+  Future<void> _offerSaveAsPending(
+    BuildContext context,
+    WidgetRef ref,
+    LoanFormController controller,
+  ) async {
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Service unreachable'),
+        content: const Text(
+          'The request could not be sent. Save it as a pending request and '
+          'retry later from Pending requests?',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Not now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Save as pending'),
+          ),
+        ],
+      ),
+    );
+    if (save != true) {
+      return;
+    }
+    await controller.saveAsPending();
+    ref.invalidate(pendingControllerProvider);
+    if (context.mounted) {
+      context.go('/pending');
+    }
   }
 
   Future<void> _pickDate({

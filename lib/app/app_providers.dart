@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:uuid/uuid.dart';
 
 import '../core/network/api_client.dart';
 import '../core/error/app_failure.dart';
@@ -18,13 +19,16 @@ import '../features/equipment/domain/policies/deposit_policy.dart';
 import '../features/equipment/domain/policies/device_category_classifier.dart';
 import '../features/equipment/domain/repositories/equipment_repository.dart';
 import '../features/equipment/domain/usecases/get_device.dart';
-import '../features/equipment/domain/usecases/get_devices.dart';
 import '../features/equipment/presentation/providers/catalogue_controller.dart';
 import '../features/equipment/presentation/providers/catalogue_query_controller.dart';
 import '../features/loan_request/data/datasources/loan_request_remote_datasource.dart';
 import '../features/loan_request/data/mapping/loan_request_mapper.dart';
+import '../features/loan_request/data/repositories/loan_draft_repository_impl.dart';
 import '../features/loan_request/data/repositories/loan_request_repository_impl.dart';
+import '../features/loan_request/data/repositories/loan_submission_repository_impl.dart';
+import '../features/loan_request/domain/repositories/loan_draft_repository.dart';
 import '../features/loan_request/domain/repositories/loan_request_repository.dart';
+import '../features/loan_request/domain/repositories/loan_submission_repository.dart';
 import '../features/loan_request/domain/usecases/submit_loan_request.dart';
 import '../features/loan_request/presentation/providers/loan_form_controller.dart';
 
@@ -84,16 +88,18 @@ final _equipmentRemoteProvider = Provider<EquipmentRemoteDataSource>(
   ),
 );
 
-/// Provides normalized equipment access.
+final _catalogueCacheDaoProvider = Provider(
+  (ref) => ref.watch(appDatabaseProvider).catalogueCacheDao,
+);
+
+/// Provides normalized equipment access with offline caching.
 final equipmentRepositoryProvider = Provider<EquipmentRepository>(
   (ref) => EquipmentRepositoryImpl(
     remote: ref.watch(_equipmentRemoteProvider),
     mapper: ref.watch(_deviceMapperProvider),
+    cache: ref.watch(_catalogueCacheDaoProvider),
+    clock: ref.watch(clockProvider),
   ),
-);
-
-final _getDevicesProvider = Provider<GetDevices>(
-  (ref) => GetDevices(ref.watch(equipmentRepositoryProvider)),
 );
 
 final _getDeviceProvider = Provider<GetDevice>(
@@ -104,7 +110,7 @@ final _getDeviceProvider = Provider<GetDevice>(
 final catalogueControllerProvider =
     StateNotifierProvider<CatalogueController, CatalogueState>((ref) {
       final controller = CatalogueController(
-        ref.watch(_getDevicesProvider),
+        ref.watch(equipmentRepositoryProvider),
         onRemoteRefreshSuccess: (devices) {
           ref
               .read(compareControllerProvider.notifier)
@@ -145,6 +151,29 @@ final _submitLoanRequestProvider = Provider<SubmitLoanRequest>(
   (ref) => SubmitLoanRequest(ref.watch(loanRequestRepositoryProvider)),
 );
 
+final _loanDraftDaoProvider = Provider(
+  (ref) => ref.watch(appDatabaseProvider).loanDraftDao,
+);
+
+/// Provides persisted loan-draft storage.
+final loanDraftRepositoryProvider = Provider<LoanDraftRepository>(
+  (ref) => LoanDraftRepositoryImpl(
+    dao: ref.watch(_loanDraftDaoProvider),
+    clock: ref.watch(clockProvider),
+  ),
+);
+
+final _loanSubmissionDaoProvider = Provider(
+  (ref) => ref.watch(appDatabaseProvider).loanSubmissionDao,
+);
+
+/// Provides persisted loan-submission storage.
+final loanSubmissionRepositoryProvider = Provider<LoanSubmissionRepository>(
+  (ref) => LoanSubmissionRepositoryImpl(ref.watch(_loanSubmissionDaoProvider)),
+);
+
+const _uuid = Uuid();
+
 /// Owns a loan form for a single normalized device.
 final loanFormControllerProvider = StateNotifierProvider.autoDispose
     .family<LoanFormController, LoanFormState, Device>((ref, device) {
@@ -153,6 +182,9 @@ final loanFormControllerProvider = StateNotifierProvider.autoDispose
         depositPolicy: ref.watch(depositPolicyProvider),
         clock: ref.watch(clockProvider),
         submitLoanRequest: ref.watch(_submitLoanRequestProvider),
+        draftRepository: ref.watch(loanDraftRepositoryProvider),
+        submissionRepository: ref.watch(loanSubmissionRepositoryProvider),
+        generateId: _uuid.v4,
       );
     });
 
