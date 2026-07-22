@@ -12,5 +12,5 @@ LoanRequestResponseDto _$LoanRequestResponseDtoFromJson(
   id: json['id'] as String,
   name: json['name'] as String,
   data: json['data'] as Map<String, dynamic>,
-  createdAt: json['createdAt'] as String,
+  createdAt: parseRemoteCreatedAt(json['createdAt']),
 );

@@ -14,9 +14,8 @@ final class LoanRequestMapper {
 
   /// Validates a POST response into a confirmed [RemoteCreation].
   RemoteCreation toRemoteCreation(LoanRequestResponseDto dto) {
-    final createdAt = DateTime.tryParse(dto.createdAt);
     final status = dto.data['status'];
-    if (createdAt == null || status is! String) {
+    if (status is! String) {
       throw const ResponseDataException(
         'Created request response omitted required fields.',
       );
@@ -24,7 +23,7 @@ final class LoanRequestMapper {
     return RemoteCreation(
       id: dto.id,
       name: dto.name,
-      createdAt: createdAt,
+      createdAt: dto.createdAt,
       status: status,
       data: Map<String, Object?>.from(dto.data),
     );

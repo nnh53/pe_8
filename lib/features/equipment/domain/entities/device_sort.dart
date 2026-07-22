@@ -29,7 +29,9 @@ List<Device> sortDevices(
   DepositPolicy depositPolicy,
 ) {
   final sorted = List<Device>.of(devices);
+
   int bySource(Device a, Device b) => a.sourceIndex.compareTo(b.sourceIndex);
+  
   switch (mode) {
     case SortMode.sourceOrder:
       sorted.sort(bySource);
