@@ -14,7 +14,9 @@ final class KeywordDeviceCategoryClassifier
 
   @override
   DeviceCategory classify(String name, Map<String, Object?> attributes) {
+    
     final searchable = '$name ${attributes.values.join(' ')}'.toLowerCase();
+
     if (_containsAny(searchable, const ['macbook', 'laptop', 'notebook'])) {
       return DeviceCategory.laptop;
     }
