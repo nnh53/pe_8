@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/utils/formatters.dart';
 import '../../domain/entities/loan_submission.dart';
@@ -14,7 +15,18 @@ final class PendingRequestsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(pendingControllerProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Pending requests')),
+      appBar: AppBar(
+        title: const Text('Pending requests'),
+        leading: BackButton(
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/equipment');
+            }
+          },
+        ),
+      ),
       body: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) =>
